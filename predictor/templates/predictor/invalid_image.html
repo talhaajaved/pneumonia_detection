@@ -1,0 +1,99 @@
+    {% extends 'predictor/base.html' %}
+
+{% block title %}Invalid Image - Pneumonia Detection{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Error Card -->
+        <div class="card mb-4" style="border-color: #ffc107;">
+            <div class="card-body text-center p-5" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+                <i class="bi bi-exclamation-octagon text-white" style="font-size: 5rem;"></i>
+                <h1 class="display-5 fw-bold mt-3 text-white">Not a Valid Chest X-ray</h1>
+                <p class="lead mt-3 text-white">
+                    Our AI could not detect lung tissue in the uploaded image.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Details Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Analysis Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="text-center mb-4">
+                            <div class="display-1 text-warning">{{ lung_area_percent }}%</div>
+                            <p class="text-muted">Detected Lung Area</p>
+                            <small class="text-muted">Minimum required: 5%</small>
+                        </div>
+                        
+                        <div class="confidence-bar" style="height: 20px; background: #e9ecef; border-radius: 10px;">
+                            <div style="width: {{ lung_area_percent }}%; background: #ffc107; height: 100%; border-radius: 10px; transition: width 0.5s;"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5><i class="bi bi-lightbulb text-warning me-2"></i>What went wrong?</h5>
+                        <p class="text-muted">
+                            The image doesn't appear to be a chest X-ray. Our lung segmentation model 
+                            couldn't identify sufficient lung tissue in the uploaded image.
+                        </p>
+                        
+                        <h6 class="mt-4">Please ensure your image:</h6>
+                        <ul class="text-muted">
+                            <li>Is a frontal (PA or AP) chest X-ray</li>
+                            <li>Shows both lungs clearly visible</li>
+                            <li>Is not cropped or rotated significantly</li>
+                            <li>Has adequate contrast and brightness</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Example Images -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-images me-2"></i>Valid X-ray Examples</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 bg-light rounded">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <p class="mt-2 mb-0"><strong>Frontal View</strong></p>
+                            <small class="text-muted">PA or AP projection</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 bg-light rounded">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <p class="mt-2 mb-0"><strong>Full Chest</strong></p>
+                            <small class="text-muted">Both lungs visible</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 bg-light rounded">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <p class="mt-2 mb-0"><strong>Good Quality</strong></p>
+                            <small class="text-muted">Clear contrast</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-upload me-2"></i>Try Another Image
+            </a>
+            <a href="{% url 'history' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-clock-history me-2"></i>View History
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

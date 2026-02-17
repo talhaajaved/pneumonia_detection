@@ -1,0 +1,119 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Result - Pneumonia Detection{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Result Card -->
+        <div class="card result-card mb-4 {% if result.is_pneumonia %}result-pneumonia{% else %}result-normal{% endif %}">
+            <div class="card-body text-white text-center p-5">
+                {% if result.is_pneumonia %}
+                <i class="bi bi-exclamation-triangle" style="font-size: 5rem;"></i>
+                <h1 class="display-4 fw-bold mt-3">PNEUMONIA DETECTED</h1>
+                {% else %}
+                <i class="bi bi-check-circle" style="font-size: 5rem;"></i>
+                <h1 class="display-4 fw-bold mt-3">NORMAL</h1>
+                {% endif %}
+                <p class="lead mt-3">Confidence: {{ result.confidence_percent }}%</p>
+            </div>
+        </div>
+        
+        <!-- Details Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Prediction Details</h5>
+            </div>
+            <div class="card-body">
+                <!-- Image Comparison Row -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        {% if prediction_record.image %}
+                        <h6 class="text-center"><i class="bi bi-image me-2"></i>Original X-ray</h6>
+                        <img src="{{ prediction_record.image.url }}" class="img-fluid rounded shadow" alt="Original X-ray" style="max-height: 300px; width: 100%; object-fit: contain;">
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {% if prediction_record.segmented_image %}
+                        <h6 class="text-center"><i class="bi bi-lungs me-2"></i>Lung Segmentation</h6>
+                        <img src="{{ prediction_record.segmented_image.url }}" class="img-fluid rounded shadow" alt="Segmented Lungs" style="max-height: 300px; width: 100%; object-fit: contain;">
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if result.lung_validated %}
+                <!-- Lung Validation Badge -->
+                <div class="mb-4 p-3 bg-success bg-opacity-10 rounded text-center">
+                    <i class="bi bi-shield-check text-success me-2" style="font-size: 1.5rem;"></i>
+                    <span class="text-success fw-bold">
+                        Lung Validated - {{ result.lung_area_percent }}% lung area detected
+                    </span>
+                    {% if result.mean_confidence %}
+                    <span class="text-muted ms-2">({{ result.mean_confidence }}% model confidence)</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6><i class="bi bi-graph-up me-2"></i>Probability Distribution</h6>
+                        
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span><i class="bi bi-check-circle text-success me-1"></i>Normal</span>
+                                <span class="fw-bold">{{ result.probabilities.NORMAL }}%</span>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill bg-success" style="width: {{ result.probabilities.NORMAL }}%;"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span><i class="bi bi-exclamation-triangle text-danger me-1"></i>Pneumonia</span>
+                                <span class="fw-bold">{{ result.probabilities.PNEUMONIA }}%</span>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill bg-danger" style="width: {{ result.probabilities.PNEUMONIA }}%;"></div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 class="{% if result.is_pneumonia %}text-danger{% else %}text-success{% endif %}">
+                                    {{ result.prediction }}
+                                </h3>
+                                <small class="text-muted">Prediction</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-primary">{{ result.confidence_percent }}%</h3>
+                                <small class="text-muted">Confidence</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Disclaimer -->
+        <div class="alert alert-warning">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Important:</strong> This AI-powered analysis is for research and educational purposes only. 
+            It should not be used as a substitute for professional medical diagnosis. Please consult a 
+            qualified healthcare provider for proper medical advice.
+        </div>
+        
+        <!-- Actions -->
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-upload me-2"></i>Analyze Another Image
+            </a>
+            <a href="{% url 'history' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-clock-history me-2"></i>View History
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

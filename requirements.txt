@@ -1,0 +1,20 @@
+# Django Pneumonia Detection Requirements
+# =========================================
+# For GPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+# For CPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Django Framework
+django>=5.0
+
+# Production Server
+gunicorn>=21.0
+
+# Image Processing
+pillow>=10.0
+
+# PyTorch (installed separately in Dockerfile)
+# torch>=2.0
+# torchvision>=0.15
+
+# Utilities
+numpy>=1.26
