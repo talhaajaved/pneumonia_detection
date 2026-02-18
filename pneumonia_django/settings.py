@@ -104,10 +104,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 _env_model_path = os.environ.get('MODEL_CHECKPOINT_PATH', '')
 _checkpoint_locations = [
     Path(_env_model_path) if _env_model_path else None,  # Environment variable
-    BASE_DIR / 'best_pneumonia_resnet50.pth',  # Model in project root
-    BASE_DIR / 'checkpoints' / 'best_pneumonia_resnet50.pth',  # Docker volume mount
-    DETECTION_DIR / 'checkpoints' / 'best_pneumonia_resnet50.pth',  # Local development
-    Path('/app/checkpoints/best_pneumonia_resnet50.pth'),  # Docker absolute path
+    BASE_DIR / 'best_pneumonia_pipeline_v2.pth',  # Model in project root (v2)
+    BASE_DIR / 'best_pneumonia_resnet50.pth',  # Legacy model name
+    BASE_DIR / 'checkpoints' / 'best_pneumonia_pipeline_v2.pth',  # Docker volume mount
+    DETECTION_DIR / 'checkpoints' / 'best_pneumonia_pipeline_v2.pth',  # Local development
+    Path('/app/checkpoints/best_pneumonia_pipeline_v2.pth'),  # Docker absolute path
 ]
 
 MODEL_CHECKPOINT_PATH = None
@@ -127,16 +128,21 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 # Class names
 CLASS_NAMES = ['NORMAL', 'PNEUMONIA']
 
+# Pneumonia classification threshold
+# If pneumonia probability >= threshold, predict PNEUMONIA
+PNEUMONIA_THRESHOLD = 0.94
+
 # ============================================
-# Lung Segmentation Model Configuration
+# Chest X-ray Validator Model Configuration
 # ============================================
 _env_seg_path = os.environ.get('SEGMENTATION_CHECKPOINT_PATH', '')
 _seg_checkpoint_locations = [
     Path(_env_seg_path) if _env_seg_path else None,
-    BASE_DIR / 'best_lung_segmentation_unet.pth',
-    BASE_DIR / 'checkpoints' / 'best_lung_segmentation_unet.pth',
-    DETECTION_DIR / 'checkpoints' / 'best_lung_segmentation_unet.pth',
-    Path('/app/checkpoints/best_lung_segmentation_unet.pth'),
+    BASE_DIR / 'best_chest_xray_validator.pth',  # X-ray validator (v2)
+    BASE_DIR / 'best_lung_segmentation_unet.pth',  # Legacy model name
+    BASE_DIR / 'checkpoints' / 'best_chest_xray_validator.pth',
+    DETECTION_DIR / 'checkpoints' / 'best_chest_xray_validator.pth',
+    Path('/app/checkpoints/best_chest_xray_validator.pth'),
 ]
 
 SEGMENTATION_CHECKPOINT_PATH = None

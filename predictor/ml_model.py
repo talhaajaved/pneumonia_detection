@@ -451,7 +451,16 @@ class PneumoniaPredictor:
         with torch.no_grad():
             outputs = self._model(img_tensor)
             probs = torch.softmax(outputs, dim=1)
-            pred_idx = torch.argmax(probs, dim=1).item()
+        
+        # Apply threshold for classification
+        # If pneumonia probability >= threshold, predict PNEUMONIA
+        pneumonia_prob = probs[0, 1].item()
+        threshold = getattr(settings, 'PNEUMONIA_THRESHOLD', 0.5)
+        
+        if pneumonia_prob >= threshold:
+            pred_idx = 1  # PNEUMONIA
+        else:
+            pred_idx = 0  # NORMAL
         
         # Get results
         prediction = settings.CLASS_NAMES[pred_idx]
