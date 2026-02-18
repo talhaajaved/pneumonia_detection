@@ -9,47 +9,112 @@
         <div class="card mb-4" style="border-color: #ffc107;">
             <div class="card-body text-center p-5" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
                 <i class="bi bi-exclamation-octagon text-white" style="font-size: 5rem;"></i>
-                <h1 class="display-5 fw-bold mt-3 text-white">Not a Valid Chest X-ray</h1>
+                {% if result.error == 'not_xray' %}
+                <h1 class="display-5 fw-bold mt-3 text-white">Not a Chest X-ray</h1>
+                <p class="lead mt-3 text-white">
+                    The uploaded image does not appear to be a chest X-ray.
+                </p>
+                {% else %}
+                <h1 class="display-5 fw-bold mt-3 text-white">No Lungs Detected</h1>
                 <p class="lead mt-3 text-white">
                     Our AI could not detect lung tissue in the uploaded image.
                 </p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Pipeline Status Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Validation Pipeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <!-- Stage 1: X-ray Classifier -->
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 rounded {% if result.error == 'not_xray' %}bg-danger bg-opacity-10{% else %}bg-success bg-opacity-10{% endif %}">
+                            <i class="bi bi-1-circle-fill {% if result.error == 'not_xray' %}text-danger{% else %}text-success{% endif %}" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-1"><strong>X-ray Classifier</strong></p>
+                            {% if result.error == 'not_xray' %}
+                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>FAILED</span>
+                            {% if result.validation %}
+                            <p class="mt-2 mb-0 text-danger small">Confidence: {{ result.validation.confidence_percent }}%</p>
+                            <p class="mb-0 text-muted small">Threshold: {{ result.validation.validation_details.threshold|floatformat:0 }}%</p>
+                            {% endif %}
+                            {% else %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>PASSED</span>
+                            {% if result.validation %}
+                            <p class="mt-2 mb-0 text-success small">Confidence: {{ result.validation.confidence_percent }}%</p>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Stage 2: Segmentation -->
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 rounded {% if result.error == 'lung_not_detected' %}bg-danger bg-opacity-10{% elif result.error == 'not_xray' %}bg-secondary bg-opacity-10{% else %}bg-success bg-opacity-10{% endif %}">
+                            <i class="bi bi-2-circle-fill {% if result.error == 'lung_not_detected' %}text-danger{% elif result.error == 'not_xray' %}text-secondary{% else %}text-success{% endif %}" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-1"><strong>Lung Segmentation</strong></p>
+                            {% if result.error == 'not_xray' %}
+                            <span class="badge bg-secondary"><i class="bi bi-skip-forward me-1"></i>SKIPPED</span>
+                            <p class="mt-2 mb-0 text-muted small">Stage 1 failed</p>
+                            {% elif result.error == 'lung_not_detected' %}
+                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>FAILED</span>
+                            <p class="mt-2 mb-0 text-danger small">Lung Area: {{ lung_area_percent }}%</p>
+                            <p class="mb-0 text-muted small">Minimum: 10%</p>
+                            {% else %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>PASSED</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Stage 3: Detection -->
+                    <div class="col-md-4 mb-3">
+                        <div class="p-3 rounded bg-secondary bg-opacity-10">
+                            <i class="bi bi-3-circle-fill text-secondary" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-1"><strong>Pneumonia Detection</strong></p>
+                            <span class="badge bg-secondary"><i class="bi bi-skip-forward me-1"></i>SKIPPED</span>
+                            <p class="mt-2 mb-0 text-muted small">Previous stage failed</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
         <!-- Details Card -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Analysis Details</h5>
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>What went wrong?</h5>
             </div>
             <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <div class="text-center mb-4">
-                            <div class="display-1 text-warning">{{ lung_area_percent }}%</div>
-                            <p class="text-muted">Detected Lung Area</p>
-                            <small class="text-muted">Minimum required: 5%</small>
-                        </div>
-                        
-                        <div class="confidence-bar" style="height: 20px; background: #e9ecef; border-radius: 10px;">
-                            <div style="width: {{ lung_area_percent }}%; background: #ffc107; height: 100%; border-radius: 10px; transition: width 0.5s;"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h5><i class="bi bi-lightbulb text-warning me-2"></i>What went wrong?</h5>
-                        <p class="text-muted">
-                            The image doesn't appear to be a chest X-ray. Our lung segmentation model 
-                            couldn't identify sufficient lung tissue in the uploaded image.
-                        </p>
-                        
-                        <h6 class="mt-4">Please ensure your image:</h6>
-                        <ul class="text-muted">
-                            <li>Is a frontal (PA or AP) chest X-ray</li>
-                            <li>Shows both lungs clearly visible</li>
-                            <li>Is not cropped or rotated significantly</li>
-                            <li>Has adequate contrast and brightness</li>
-                        </ul>
-                    </div>
+                {% if result.error == 'not_xray' %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Stage 1 Failed:</strong> {{ result.message }}
                 </div>
+                <p class="text-muted">
+                    Our X-ray classifier determined that this image is <strong>not a medical chest X-ray</strong>. 
+                    The model requires a confidence of at least {{ result.validation.validation_details.threshold|floatformat:0|default:"70" }}% to proceed, 
+                    but only achieved {{ result.validation.confidence_percent|default:"0" }}%.
+                </p>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Stage 2 Failed:</strong> {{ result.message }}
+                </div>
+                <p class="text-muted">
+                    The image passed X-ray validation, but our lung segmentation model couldn't identify 
+                    sufficient lung tissue. Only {{ lung_area_percent }}% lung area was detected (minimum 10% required).
+                </p>
+                {% endif %}
+                
+                <h6 class="mt-4">Please ensure your image:</h6>
+                <ul class="text-muted">
+                    <li>Is a <strong>frontal (PA or AP) chest X-ray</strong></li>
+                    <li>Shows both lungs clearly visible</li>
+                    <li>Is not a photo of a person, object, or non-medical image</li>
+                    <li>Has adequate contrast and brightness</li>
+                </ul>
             </div>
         </div>
         

@@ -133,16 +133,40 @@ CLASS_NAMES = ['NORMAL', 'PNEUMONIA']
 PNEUMONIA_THRESHOLD = 0.94
 
 # ============================================
-# Chest X-ray Validator Model Configuration
+# Chest X-ray Validator Model Configuration (Stage 1)
+# ============================================
+_env_validator_path = os.environ.get('XRAY_VALIDATOR_PATH', '')
+_validator_checkpoint_locations = [
+    Path(_env_validator_path) if _env_validator_path else None,
+    BASE_DIR / 'best_chest_xray_validator.pth',
+    BASE_DIR / 'checkpoints' / 'best_chest_xray_validator.pth',
+    DETECTION_DIR / 'checkpoints' / 'best_chest_xray_validator.pth',
+    Path('/app/checkpoints/best_chest_xray_validator.pth'),
+]
+
+XRAY_VALIDATOR_PATH = None
+for path in _validator_checkpoint_locations:
+    if path and path.exists():
+        XRAY_VALIDATOR_PATH = path
+        break
+
+if XRAY_VALIDATOR_PATH is None:
+    XRAY_VALIDATOR_PATH = BASE_DIR / 'best_chest_xray_validator.pth'
+
+# X-ray validation threshold (higher = stricter, rejects more non-X-rays)
+# 0.7 is recommended to reject composite/dual images more aggressively
+XRAY_VALIDATION_THRESHOLD = 0.90
+
+# ============================================
+# Lung Segmentation Model Configuration (Stage 2)
 # ============================================
 _env_seg_path = os.environ.get('SEGMENTATION_CHECKPOINT_PATH', '')
 _seg_checkpoint_locations = [
     Path(_env_seg_path) if _env_seg_path else None,
-    BASE_DIR / 'best_chest_xray_validator.pth',  # X-ray validator (v2)
-    BASE_DIR / 'best_lung_segmentation_unet.pth',  # Legacy model name
-    BASE_DIR / 'checkpoints' / 'best_chest_xray_validator.pth',
-    DETECTION_DIR / 'checkpoints' / 'best_chest_xray_validator.pth',
-    Path('/app/checkpoints/best_chest_xray_validator.pth'),
+    BASE_DIR / 'best_lung_segmentation_unet.pth',
+    BASE_DIR / 'checkpoints' / 'best_lung_segmentation_unet.pth',
+    DETECTION_DIR / 'checkpoints' / 'best_lung_segmentation_unet.pth',
+    Path('/app/checkpoints/best_lung_segmentation_unet.pth'),
 ]
 
 SEGMENTATION_CHECKPOINT_PATH = None

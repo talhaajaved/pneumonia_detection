@@ -34,15 +34,15 @@ def predict_view(request):
             # Open image with PIL
             image = Image.open(image_file)
             
-            # Get prediction with lung validation
+            # Get prediction with X-ray validation
             predictor = get_predictor()
-            result = predictor.predict(image, validate_lung=True)
+            result = predictor.predict(image, validate_xray=True)
             
             # Debug logging
             print(f"[DEBUG] Prediction result: success={result.get('success')}, error={result.get('error')}")
-            print(f"[DEBUG] Lung area %: {result.get('lung_area_percent')}, validated: {result.get('lung_validated')}")
-            if result.get('segmentation'):
-                print(f"[DEBUG] Segmentation details: {result['segmentation'].get('validation_details')}")
+            print(f"[DEBUG] X-ray validation: validated={result.get('xray_validated')}, confidence={result.get('xray_confidence')}")
+            if result.get('validation'):
+                print(f"[DEBUG] Validation details: {result['validation'].get('validation_details')}")
             
             # Check if lung validation failed
             if not result.get('success', True):
@@ -65,17 +65,15 @@ def predict_view(request):
             )
             
             # Save segmented image if available
-            if result.get('segmentation') and result['segmentation'].get('masked_image'):
-                masked_img = result['segmentation']['masked_image']
-                img_io = io.BytesIO()
-                masked_img.save(img_io, format='PNG')
-                img_io.seek(0)
-                segmented_filename = f'segmented_{uuid.uuid4().hex[:8]}.png'
-                prediction_record.segmented_image.save(
-                    segmented_filename,
-                    ContentFile(img_io.read()),
-                    save=True
-                )
+            if result.get('segmentation') and result['segmentation'].get('segmented_image'):
+                segmented_img = result['segmentation']['segmented_image']
+                # Convert PIL Image to bytes
+                img_buffer = io.BytesIO()
+                segmented_img.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                # Save to model
+                filename = f"segmented_{uuid.uuid4().hex[:8]}.png"
+                prediction_record.segmented_image.save(filename, ContentFile(img_buffer.read()), save=True)
             
             return render(request, 'predictor/result.html', {
                 'result': result,
@@ -118,10 +116,13 @@ def api_predict(request):
         # Open image with PIL
         image = Image.open(image_file)
         
-        # Get prediction with lung validation
-        validate_lung = request.POST.get('validate_lung', 'true').lower() == 'true'
+        # Get prediction with X-ray validation
+        validate_xray = request.POST.get('validate_xray', 'true').lower() == 'true'
+        # Support legacy parameter name
+        if 'validate_lung' in request.POST:
+            validate_xray = request.POST.get('validate_lung', 'true').lower() == 'true'
         predictor = get_predictor()
-        result = predictor.predict(image, validate_lung=validate_lung)
+        result = predictor.predict(image, validate_xray=validate_xray)
         
         # Check if lung validation failed
         if not result.get('success', True):

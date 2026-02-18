@@ -29,30 +29,90 @@
                 <div class="row mb-4">
                     <div class="col-md-6 mb-3">
                         {% if prediction_record.image %}
-                        <h6 class="text-center"><i class="bi bi-image me-2"></i>Original X-ray</h6>
-                        <img src="{{ prediction_record.image.url }}" class="img-fluid rounded shadow" alt="Original X-ray" style="max-height: 300px; width: 100%; object-fit: contain;">
+                        <div class="card h-100">
+                            <div class="card-header bg-secondary text-white text-center">
+                                <i class="bi bi-image me-2"></i>Original X-ray
+                            </div>
+                            <div class="card-body text-center p-2">
+                                <img src="{{ prediction_record.image.url }}" class="img-fluid rounded" alt="Original X-ray" style="max-height: 280px; object-fit: contain;">
+                            </div>
+                        </div>
                         {% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
                         {% if prediction_record.segmented_image %}
-                        <h6 class="text-center"><i class="bi bi-lungs me-2"></i>Lung Segmentation</h6>
-                        <img src="{{ prediction_record.segmented_image.url }}" class="img-fluid rounded shadow" alt="Segmented Lungs" style="max-height: 300px; width: 100%; object-fit: contain;">
+                        <div class="card h-100">
+                            <div class="card-header bg-success text-white text-center">
+                                <i class="bi bi-lungs me-2"></i>Segmented Lungs
+                            </div>
+                            <div class="card-body text-center p-2">
+                                <img src="{{ prediction_record.segmented_image.url }}" class="img-fluid rounded" alt="Segmented Lungs" style="max-height: 280px; object-fit: contain;">
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-dark text-center">
+                                <i class="bi bi-lungs me-2"></i>Segmented Lungs
+                            </div>
+                            <div class="card-body text-center d-flex align-items-center justify-content-center">
+                                <span class="text-muted">Segmented image not available</span>
+                            </div>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
                 
-                {% if result.lung_validated %}
-                <!-- Lung Validation Badge -->
-                <div class="mb-4 p-3 bg-success bg-opacity-10 rounded text-center">
-                    <i class="bi bi-shield-check text-success me-2" style="font-size: 1.5rem;"></i>
-                    <span class="text-success fw-bold">
-                        Lung Validated - {{ result.lung_area_percent }}% lung area detected
-                    </span>
-                    {% if result.mean_confidence %}
-                    <span class="text-muted ms-2">({{ result.mean_confidence }}% model confidence)</span>
+                <!-- Pipeline Status -->
+                <div class="row mb-4">
+                    <!-- Stage 1: X-ray Classifier Result -->
+                    {% if result.xray_validated %}
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 bg-info bg-opacity-10 rounded h-100">
+                            <h6 class="text-info mb-3"><i class="bi bi-1-circle-fill me-2"></i>X-ray Classification</h6>
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 1.5rem;"></i>
+                                <span class="fw-bold text-success">Valid Chest X-ray</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Confidence</span>
+                                <span class="fw-bold">{{ result.xray_confidence }}%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-info" style="width: {{ result.xray_confidence }}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Stage 2: Lung Segmentation Result -->
+                    {% if result.lung_validated %}
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 bg-success bg-opacity-10 rounded h-100">
+                            <h6 class="text-success mb-3"><i class="bi bi-2-circle-fill me-2"></i>Lung Segmentation</h6>
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-lungs text-success me-2" style="font-size: 1.5rem;"></i>
+                                <span class="fw-bold text-success">Lungs Detected</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Lung Area</span>
+                                <span class="fw-bold">{{ result.lung_area_percent }}%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success" style="width: {{ result.lung_area_percent }}%;"></div>
+                            </div>
+                            {% if result.segmentation.mean_confidence %}
+                            <small class="text-muted">Model Confidence: {{ result.segmentation.mean_confidence }}%</small>
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
-                {% endif %}
+                
+                <!-- Stage 3 indicator -->
+                <div class="mb-4 p-2 bg-primary bg-opacity-10 rounded text-center">
+                    <i class="bi bi-3-circle-fill text-primary me-2"></i>
+                    <span class="text-primary fw-bold">Pneumonia Detection (Threshold: {{ result.threshold_used|default:"0.94" }})</span>
+                </div>
                 
                 <div class="row">
                     <div class="col-md-12">
