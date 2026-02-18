@@ -672,10 +672,13 @@ class PneumoniaPredictor:
     """
     Singleton class for pneumonia prediction using ResNet50.
     Loads the model once and reuses for all predictions.
+    Includes Grad-CAM visualization support.
     """
     _instance = None
     _model = None
     _transform = None
+    _grad_cam = None
+    _grad_cam_pp = None
     
     def __new__(cls):
         if cls._instance is None:
@@ -684,7 +687,7 @@ class PneumoniaPredictor:
         return cls._instance
     
     def _initialize(self):
-        """Initialize the model and transforms."""
+        """Initialize the model, transforms, and Grad-CAM."""
         print(f"Loading pneumonia detection model on {settings.DEVICE}...")
         
         # Create model architecture
@@ -720,7 +723,13 @@ class PneumoniaPredictor:
             )
         ])
         
-        print("Pneumonia detection model ready!")
+        # Initialize Grad-CAM on layer4 (last conv block of ResNet50)
+        from .grad_cam import GradCAM, GradCAMPlusPlus
+        target_layer = self._model.layer4[-1]  # Last bottleneck block
+        self._grad_cam = GradCAM(self._model, target_layer)
+        self._grad_cam_pp = GradCAMPlusPlus(self._model, target_layer)
+        
+        print("Pneumonia detection model ready with Grad-CAM support!")
     
     def _create_model(self):
         """Create ResNet50 model with custom classification head."""
@@ -737,18 +746,20 @@ class PneumoniaPredictor:
         
         return model
     
-    def predict(self, image, validate_xray=True, segment_lungs=True):
+    def predict(self, image, validate_xray=True, segment_lungs=True, generate_gradcam=True, gradcam_type='gradcam'):
         """
         Predict pneumonia from a chest X-ray image using 3-stage pipeline.
         
         Stage 1: Validate image is a chest X-ray
         Stage 2: Segment lungs from the image
-        Stage 3: Detect pneumonia from segmented image
+        Stage 3: Detect pneumonia from segmented image (with optional Grad-CAM)
         
         Args:
             image: PIL Image or file path
             validate_xray: If True, first validate that image is a chest X-ray
             segment_lungs: If True, segment lungs before detection
+            generate_gradcam: If True, generate Grad-CAM visualization
+            gradcam_type: 'gradcam' or 'gradcam++' 
             
         Returns:
             dict with prediction, confidence, probabilities, and pipeline info
@@ -837,6 +848,15 @@ class PneumoniaPredictor:
             'threshold_used': threshold
         }
         
+        # Generate Grad-CAM visualization
+        if generate_gradcam:
+            gradcam_result = self.generate_gradcam(
+                image_for_detection, 
+                gradcam_type=gradcam_type,
+                target_class=1  # Always show pneumonia attention
+            )
+            result['gradcam'] = gradcam_result
+        
         # Add validation info
         if validation_result:
             result['xray_validated'] = True
@@ -854,6 +874,50 @@ class PneumoniaPredictor:
             result['lung_validated'] = False
         
         return result
+    
+    def generate_gradcam(self, image, gradcam_type='gradcam', target_class=1):
+        """
+        Generate Grad-CAM visualization for an image.
+        
+        Args:
+            image: PIL Image
+            gradcam_type: 'gradcam' or 'gradcam++'
+            target_class: Class to visualize (0=NORMAL, 1=PNEUMONIA)
+            
+        Returns:
+            dict with overlay image, heatmap, and base64 encoded versions
+        """
+        from .grad_cam import GradCAM
+        
+        # Convert to RGB if needed
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Store original for overlay
+        original_image = image.copy()
+        
+        # Preprocess for model
+        img_tensor = self._transform(image).unsqueeze(0).to(settings.DEVICE)
+        
+        # Select Grad-CAM variant
+        if gradcam_type == 'gradcam++':
+            cam_generator = self._grad_cam_pp
+        else:
+            cam_generator = self._grad_cam
+        
+        # Generate visualization
+        visualization = cam_generator.generate_visualization(
+            original_image,
+            img_tensor,
+            target_class=target_class
+        )
+        
+        return {
+            'heatmap': visualization['cam'],
+            'overlay_image': visualization['overlay'],
+            'overlay_base64': GradCAM.pil_to_base64(visualization['overlay']),
+            'target_class': 'PNEUMONIA' if target_class == 1 else 'NORMAL'
+        }
 
 
 # Global predictor instance (lazy loaded)

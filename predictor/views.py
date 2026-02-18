@@ -34,9 +34,9 @@ def predict_view(request):
             # Open image with PIL
             image = Image.open(image_file)
             
-            # Get prediction with X-ray validation
+            # Get prediction with X-ray validation and Grad-CAM
             predictor = get_predictor()
-            result = predictor.predict(image, validate_xray=True)
+            result = predictor.predict(image, validate_xray=True, generate_gradcam=True)
             
             # Debug logging
             print(f"[DEBUG] Prediction result: success={result.get('success')}, error={result.get('error')}")
@@ -74,6 +74,17 @@ def predict_view(request):
                 # Save to model
                 filename = f"segmented_{uuid.uuid4().hex[:8]}.png"
                 prediction_record.segmented_image.save(filename, ContentFile(img_buffer.read()), save=True)
+            
+            # Save Grad-CAM image if available
+            if result.get('gradcam') and result['gradcam'].get('overlay_image'):
+                gradcam_img = result['gradcam']['overlay_image']
+                # Convert PIL Image to bytes
+                img_buffer = io.BytesIO()
+                gradcam_img.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                # Save to model
+                filename = f"gradcam_{uuid.uuid4().hex[:8]}.png"
+                prediction_record.gradcam_image.save(filename, ContentFile(img_buffer.read()), save=True)
             
             return render(request, 'predictor/result.html', {
                 'result': result,

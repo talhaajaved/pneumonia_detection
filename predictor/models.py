@@ -6,6 +6,7 @@ class PredictionHistory(models.Model):
     
     image = models.ImageField(upload_to='predictions/%Y/%m/%d/')
     segmented_image = models.ImageField(upload_to='predictions/%Y/%m/%d/segmented/', null=True, blank=True)
+    gradcam_image = models.ImageField(upload_to='predictions/%Y/%m/%d/gradcam/', null=True, blank=True)
     prediction = models.CharField(max_length=20)
     confidence = models.FloatField()
     normal_probability = models.FloatField()

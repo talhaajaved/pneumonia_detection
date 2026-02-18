@@ -18,3 +18,6 @@ pillow>=10.0
 
 # Utilities
 numpy>=1.26
+
+# Grad-CAM Visualization
+opencv-python>=4.8
