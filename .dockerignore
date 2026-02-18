@@ -20,6 +20,12 @@ db.sqlite3
 media/*
 !media/.gitkeep
 
+# Model weights (mounted as volumes instead)
+*.pth
+*.pt
+*.h5
+*.onnx
+
 # IDE
 .idea/
 .vscode/

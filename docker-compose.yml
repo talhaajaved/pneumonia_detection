@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build:
@@ -12,19 +10,21 @@ services:
     volumes:
       # Persist uploaded images
       - media_data:/app/media
-      # Mount model checkpoint from parent directory
-      - ../checkpoints:/app/checkpoints:ro
+      # Mount model weights (place .pth files in same directory as docker-compose.yml)
+      - ./best_chest_xray_validator.pth:/app/best_chest_xray_validator.pth:ro
+      - ./best_lung_segmentation_unet.pth:/app/best_lung_segmentation_unet.pth:ro
+      - ./best_pneumonia_pipeline_v2.pth:/app/best_pneumonia_pipeline_v2.pth:ro
     environment:
       - DJANGO_DEBUG=False
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-this-secret-key-in-production}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 90s
 
   # Optional: Nginx reverse proxy for production
   nginx:

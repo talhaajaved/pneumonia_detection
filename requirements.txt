@@ -8,6 +8,7 @@ django>=5.0
 
 # Production Server
 gunicorn>=21.0
+whitenoise>=6.6
 
 # Image Processing
 pillow>=10.0
@@ -16,8 +17,12 @@ pillow>=10.0
 # torch>=2.0
 # torchvision>=0.15
 
-# Utilities
-numpy>=1.26
+# Segmentation Models (U-Net with ResNet34 encoder)
+segmentation-models-pytorch>=0.3.0
 
-# Grad-CAM Visualization
-opencv-python>=4.8
+# Scientific Computing
+numpy>=1.26
+scipy>=1.11
+
+# Grad-CAM Visualization (use headless for Docker)
+opencv-python-headless>=4.8
