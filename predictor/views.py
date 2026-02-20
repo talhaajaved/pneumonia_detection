@@ -86,6 +86,17 @@ def predict_view(request):
                 filename = f"gradcam_{uuid.uuid4().hex[:8]}.png"
                 prediction_record.gradcam_image.save(filename, ContentFile(img_buffer.read()), save=True)
             
+            # Save grayscale image if available (for color X-rays)
+            if result.get('gradcam') and result['gradcam'].get('grayscale_image'):
+                grayscale_img = result['gradcam']['grayscale_image']
+                # Convert PIL Image to bytes
+                img_buffer = io.BytesIO()
+                grayscale_img.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                # Save to model
+                filename = f"grayscale_{uuid.uuid4().hex[:8]}.png"
+                prediction_record.grayscale_image.save(filename, ContentFile(img_buffer.read()), save=True)
+            
             return render(request, 'predictor/result.html', {
                 'result': result,
                 'prediction_record': prediction_record

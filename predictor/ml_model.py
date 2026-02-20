@@ -850,10 +850,16 @@ class PneumoniaPredictor:
         
         # Generate Grad-CAM visualization
         if generate_gradcam:
+            # Use ORIGINAL image for Grad-CAM, not segmented image
+            # The segmented image has black background which causes the model
+            # to focus on edges/boundaries rather than actual lung content.
+            # We then mask the heatmap to only show within the lung region.
+            lung_mask = segmentation_result['mask'] if segmentation_result else None
             gradcam_result = self.generate_gradcam(
-                image_for_detection, 
+                image,  # Use original image, not image_for_detection
                 gradcam_type=gradcam_type,
-                target_class=1  # Always show pneumonia attention
+                target_class=1,  # Always show pneumonia attention
+                lung_mask=lung_mask  # Mask heatmap to lung region
             )
             result['gradcam'] = gradcam_result
         
@@ -875,7 +881,7 @@ class PneumoniaPredictor:
         
         return result
     
-    def generate_gradcam(self, image, gradcam_type='gradcam', target_class=1):
+    def generate_gradcam(self, image, gradcam_type='gradcam', target_class=1, lung_mask=None):
         """
         Generate Grad-CAM visualization for an image.
         
@@ -883,21 +889,23 @@ class PneumoniaPredictor:
             image: PIL Image
             gradcam_type: 'gradcam' or 'gradcam++'
             target_class: Class to visualize (0=NORMAL, 1=PNEUMONIA)
+            lung_mask: Optional PIL Image mask to constrain heatmap to lung region
             
         Returns:
             dict with overlay image, heatmap, and base64 encoded versions
         """
         from .grad_cam import GradCAM
         
-        # Convert to RGB if needed
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        # Convert color images to grayscale first, then to RGB
+        # This ensures consistent processing for color-tinted X-rays (like green ones)
+        # since the model was trained on grayscale X-rays
+        grayscale_image = image.convert('L').convert('RGB')
         
-        # Store original for overlay
-        original_image = image.copy()
+        # Store original for overlay (keep as grayscale RGB for cleaner visualization)
+        original_image = grayscale_image.copy()
         
         # Preprocess for model
-        img_tensor = self._transform(image).unsqueeze(0).to(settings.DEVICE)
+        img_tensor = self._transform(grayscale_image).unsqueeze(0).to(settings.DEVICE)
         
         # Select Grad-CAM variant
         if gradcam_type == 'gradcam++':
@@ -905,17 +913,19 @@ class PneumoniaPredictor:
         else:
             cam_generator = self._grad_cam
         
-        # Generate visualization
+        # Generate visualization with lung mask
         visualization = cam_generator.generate_visualization(
             original_image,
             img_tensor,
-            target_class=target_class
+            target_class=target_class,
+            lung_mask=lung_mask
         )
         
         return {
             'heatmap': visualization['cam'],
             'overlay_image': visualization['overlay'],
             'overlay_base64': GradCAM.pil_to_base64(visualization['overlay']),
+            'grayscale_image': grayscale_image,  # Include grayscale version
             'target_class': 'PNEUMONIA' if target_class == 1 else 'NORMAL'
         }
 

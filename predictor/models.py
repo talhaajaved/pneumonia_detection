@@ -5,6 +5,7 @@ class PredictionHistory(models.Model):
     """Store prediction history for audit and analytics."""
     
     image = models.ImageField(upload_to='predictions/%Y/%m/%d/')
+    grayscale_image = models.ImageField(upload_to='predictions/%Y/%m/%d/grayscale/', null=True, blank=True)
     segmented_image = models.ImageField(upload_to='predictions/%Y/%m/%d/segmented/', null=True, blank=True)
     gradcam_image = models.ImageField(upload_to='predictions/%Y/%m/%d/gradcam/', null=True, blank=True)
     prediction = models.CharField(max_length=20)

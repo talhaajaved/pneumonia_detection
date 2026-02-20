@@ -129,7 +129,7 @@ class GradCAM:
         
         return cam, prediction, confidence, probabilities
     
-    def generate_heatmap_overlay(self, original_image, cam, alpha=0.5, colormap=cv2.COLORMAP_JET):
+    def generate_heatmap_overlay(self, original_image, cam, alpha=0.5, colormap=cv2.COLORMAP_JET, lung_mask=None):
         """
         Overlay Grad-CAM heatmap on original image.
         
@@ -138,6 +138,7 @@ class GradCAM:
             cam: Grad-CAM heatmap [H, W]
             alpha: Transparency of heatmap overlay
             colormap: OpenCV colormap for heatmap
+            lung_mask: Optional PIL Image mask to constrain heatmap to lung region
             
         Returns:
             overlay: Image with heatmap overlay as PIL Image
@@ -155,17 +156,43 @@ class GradCAM:
         # Resize CAM to match image size
         cam_resized = cv2.resize(cam, (original_image.shape[1], original_image.shape[0]))
         
+        # Apply lung mask to constrain heatmap to lung region
+        if lung_mask is not None:
+            # Convert PIL mask to numpy
+            if isinstance(lung_mask, Image.Image):
+                mask_array = np.array(lung_mask.resize((original_image.shape[1], original_image.shape[0])))
+            else:
+                mask_array = cv2.resize(lung_mask, (original_image.shape[1], original_image.shape[0]))
+            
+            # Normalize mask to 0-1 range
+            if mask_array.max() > 1:
+                mask_array = mask_array / 255.0
+            
+            # Apply mask to CAM - zero out areas outside lungs
+            cam_resized = cam_resized * mask_array
+            
+            # RE-NORMALIZE after masking to ensure visibility within lung region
+            # This is critical when the model's attention was outside the lung area
+            if cam_resized.max() > 0:
+                cam_resized = (cam_resized - cam_resized.min()) / (cam_resized.max() - cam_resized.min())
+        
         # Convert CAM to heatmap
         heatmap = np.uint8(255 * cam_resized)
         heatmap = cv2.applyColorMap(heatmap, colormap)
         heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
         
-        # Overlay heatmap on original image
-        overlay = np.uint8(original_image * (1 - alpha) + heatmap * alpha)
+        # For masked heatmap, only blend where there's actual heatmap intensity
+        if lung_mask is not None:
+            # Create blend mask based on heatmap intensity
+            blend_mask = cam_resized[:, :, np.newaxis]  # Add channel dimension
+            overlay = np.uint8(original_image * (1 - alpha * blend_mask) + heatmap * (alpha * blend_mask))
+        else:
+            # Standard overlay
+            overlay = np.uint8(original_image * (1 - alpha) + heatmap * alpha)
         
         return Image.fromarray(overlay)
     
-    def generate_visualization(self, original_image, input_tensor, target_class=None):
+    def generate_visualization(self, original_image, input_tensor, target_class=None, lung_mask=None):
         """
         Generate complete Grad-CAM visualization.
         
@@ -173,6 +200,7 @@ class GradCAM:
             original_image: Original image (PIL or numpy)
             input_tensor: Preprocessed input tensor
             target_class: Target class for CAM (0=NORMAL, 1=PNEUMONIA)
+            lung_mask: Optional PIL Image mask to constrain heatmap to lung region
             
         Returns:
             dict with cam, overlay, prediction, confidence
@@ -180,8 +208,8 @@ class GradCAM:
         # Generate CAM
         cam, prediction, confidence, probabilities = self.generate_cam(input_tensor, target_class)
         
-        # Generate overlay
-        overlay = self.generate_heatmap_overlay(original_image, cam)
+        # Generate overlay with lung mask
+        overlay = self.generate_heatmap_overlay(original_image, cam, lung_mask=lung_mask)
         
         return {
             'cam': cam,

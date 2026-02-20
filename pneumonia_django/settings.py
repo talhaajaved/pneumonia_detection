@@ -134,7 +134,7 @@ CLASS_NAMES = ['NORMAL', 'PNEUMONIA']
 
 # Pneumonia classification threshold
 # If pneumonia probability >= threshold, predict PNEUMONIA
-PNEUMONIA_THRESHOLD = 0.94
+PNEUMONIA_THRESHOLD = 0.90
 
 # ============================================
 # Chest X-ray Validator Model Configuration (Stage 1)

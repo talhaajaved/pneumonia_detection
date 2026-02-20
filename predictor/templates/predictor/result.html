@@ -27,26 +27,53 @@
             <div class="card-body">
                 <!-- Image Comparison Row -->
                 <div class="row mb-4">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 col-lg-3 mb-3">
                         {% if prediction_record.image %}
                         <div class="card h-100">
                             <div class="card-header bg-secondary text-white text-center">
                                 <i class="bi bi-image me-2"></i>Original X-ray
                             </div>
                             <div class="card-body text-center p-2">
-                                <img src="{{ prediction_record.image.url }}" class="img-fluid rounded" alt="Original X-ray" style="max-height: 250px; object-fit: contain;">
+                                <img src="{{ prediction_record.image.url }}" class="img-fluid rounded" alt="Original X-ray" style="max-height: 200px; object-fit: contain;">
                             </div>
                         </div>
                         {% endif %}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 col-lg-3 mb-3">
+                        {% if prediction_record.grayscale_image %}
+                        <div class="card h-100">
+                            <div class="card-header bg-dark text-white text-center">
+                                <i class="bi bi-brightness-high me-2"></i>Grayscale
+                            </div>
+                            <div class="card-body text-center p-2">
+                                <img src="{{ prediction_record.grayscale_image.url }}" class="img-fluid rounded" alt="Grayscale X-ray" style="max-height: 200px; object-fit: contain;">
+                            </div>
+                            <div class="card-footer bg-light">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Color images are converted to grayscale for analysis
+                                </small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="card h-100">
+                            <div class="card-header bg-dark text-white text-center">
+                                <i class="bi bi-brightness-high me-2"></i>Grayscale
+                            </div>
+                            <div class="card-body text-center d-flex align-items-center justify-content-center">
+                                <span class="text-muted">Same as original (already grayscale)</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-3">
                         {% if prediction_record.segmented_image %}
                         <div class="card h-100">
                             <div class="card-header bg-success text-white text-center">
                                 <i class="bi bi-lungs me-2"></i>Segmented Lungs
                             </div>
                             <div class="card-body text-center p-2">
-                                <img src="{{ prediction_record.segmented_image.url }}" class="img-fluid rounded" alt="Segmented Lungs" style="max-height: 250px; object-fit: contain;">
+                                <img src="{{ prediction_record.segmented_image.url }}" class="img-fluid rounded" alt="Segmented Lungs" style="max-height: 200px; object-fit: contain;">
                             </div>
                         </div>
                         {% else %}
@@ -60,19 +87,19 @@
                         </div>
                         {% endif %}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 col-lg-3 mb-3">
                         {% if prediction_record.gradcam_image %}
                         <div class="card h-100">
                             <div class="card-header bg-danger text-white text-center">
                                 <i class="bi bi-fire me-2"></i>Grad-CAM Heatmap
                             </div>
                             <div class="card-body text-center p-2">
-                                <img src="{{ prediction_record.gradcam_image.url }}" class="img-fluid rounded" alt="Grad-CAM Heatmap" style="max-height: 250px; object-fit: contain;">
+                                <img src="{{ prediction_record.gradcam_image.url }}" class="img-fluid rounded" alt="Grad-CAM Heatmap" style="max-height: 200px; object-fit: contain;">
                             </div>
                             <div class="card-footer bg-light">
                                 <small class="text-muted">
                                     <i class="bi bi-info-circle me-1"></i>
-                                    Red/yellow areas show where the model focuses for pneumonia detection
+                                    Red/yellow = model focus areas
                                 </small>
                             </div>
                         </div>
