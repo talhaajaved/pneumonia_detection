@@ -16,9 +16,17 @@ services:
       - ./best_pneumonia_pipeline_v2.pth:/app/best_pneumonia_pipeline_v2.pth:ro
     environment:
       - DJANGO_DEBUG=False
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-this-secret-key-in-production}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT:-False}
+      - API_RATE_LIMIT=${API_RATE_LIMIT:-20}
+      - API_RATE_WINDOW_SECONDS=${API_RATE_WINDOW_SECONDS:-60}
+      - ENABLE_XRAY_VALIDATION=${ENABLE_XRAY_VALIDATION:-True}
+      - ENABLE_LUNG_SEGMENTATION=${ENABLE_LUNG_SEGMENTATION:-True}
+      - ENABLE_GRADCAM=${ENABLE_GRADCAM:-True}
+      - USE_TTA=${USE_TTA:-True}
+      - MIN_SEGMENTATION_CHECKS=${MIN_SEGMENTATION_CHECKS:-3}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s

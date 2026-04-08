@@ -39,7 +39,7 @@
                             <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>FAILED</span>
                             {% if result.validation %}
                             <p class="mt-2 mb-0 text-danger small">Confidence: {{ result.validation.confidence_percent }}%</p>
-                            <p class="mb-0 text-muted small">Threshold: {{ result.validation.validation_details.threshold|floatformat:0 }}%</p>
+                            <p class="mb-0 text-muted small">Threshold: {{ result.validation.validation_details.threshold_percent|floatformat:0 }}%</p>
                             {% endif %}
                             {% else %}
                             <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>PASSED</span>
@@ -94,7 +94,7 @@
                 </div>
                 <p class="text-muted">
                     Our X-ray classifier determined that this image is <strong>not a medical chest X-ray</strong>. 
-                    The model requires a confidence of at least {{ result.validation.validation_details.threshold|floatformat:0|default:"70" }}% to proceed, 
+                    The model requires a confidence of at least {{ result.validation.validation_details.threshold_percent|floatformat:0|default:"70" }}% to proceed, 
                     but only achieved {{ result.validation.confidence_percent|default:"0" }}%.
                 </p>
                 {% else %}

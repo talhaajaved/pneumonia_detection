@@ -14,8 +14,12 @@ from torchvision import transforms
 from torchvision.models import resnet50, efficientnet_b0, EfficientNet_B0_Weights
 from PIL import Image
 import numpy as np
+import logging
 from django.conf import settings
 import segmentation_models_pytorch as smp
+
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -51,7 +55,7 @@ class ChestXRayValidatorModel(nn.Module):
     
     def predict_proba(self, x):
         """Return probability that image is a chest X-ray."""
-        with torch.no_grad():
+        with torch.inference_mode():
             logits = self.forward(x)
             return torch.sigmoid(logits)
 
@@ -73,7 +77,7 @@ class ChestXRayValidator:
     
     def _initialize(self):
         """Initialize the validation model and transforms."""
-        print(f"Loading chest X-ray validator model on {settings.DEVICE}...")
+        logger.info('Loading chest X-ray validator model on %s...', settings.DEVICE)
         
         # Create EfficientNet-B0 model
         self._model = ChestXRayValidatorModel(pretrained=False)
@@ -90,10 +94,10 @@ class ChestXRayValidator:
                 self._model.load_state_dict(checkpoint['model_state_dict'])
             else:
                 self._model.load_state_dict(checkpoint)
-            print(f"Validator model loaded from {checkpoint_path}")
+            logger.info('Validator model loaded from %s', checkpoint_path)
         else:
-            print(f"WARNING: Validator checkpoint not found at {checkpoint_path}")
-            print("X-ray validation will be skipped!")
+            logger.warning('Validator checkpoint not found at %s', checkpoint_path)
+            logger.warning('X-ray validation will be skipped.')
         
         self._model.to(settings.DEVICE)
         self._model.eval()
@@ -108,7 +112,7 @@ class ChestXRayValidator:
             )
         ])
         
-        print("Chest X-ray validator model ready!")
+        logger.info('Chest X-ray validator model ready.')
     
     def _basic_image_check(self, image):
         """
@@ -321,7 +325,7 @@ class ChestXRayValidator:
         
         img_tensor = self._transform(image).unsqueeze(0).to(settings.DEVICE)
         
-        with torch.no_grad():
+        with torch.inference_mode():
             prob = self._model.predict_proba(img_tensor)
             confidence = prob.squeeze().item()
         
@@ -336,6 +340,7 @@ class ChestXRayValidator:
                 'pre_check_failed': False,
                 'model_confidence': round(float(confidence) * 100, 2),
                 'threshold': xray_threshold,
+                'threshold_percent': round(float(xray_threshold) * 100, 2),
                 **quality_details
             }
         }
@@ -364,7 +369,7 @@ class LungSegmentor:
     """
     _instance = None
     _model = None
-    _transform = None
+    _transform = None 
     
     def __new__(cls):
         if cls._instance is None:
@@ -374,7 +379,7 @@ class LungSegmentor:
     
     def _initialize(self):
         """Initialize the segmentation model and transforms."""
-        print(f"Loading lung segmentation model on {settings.DEVICE}...")
+        logger.info('Loading lung segmentation model on %s...', settings.DEVICE)
         
         # Create U-Net model with ResNet34 encoder (matching training config)
         self._model = smp.Unet(
@@ -396,10 +401,10 @@ class LungSegmentor:
                 self._model.load_state_dict(checkpoint['model_state_dict'])
             else:
                 self._model.load_state_dict(checkpoint)
-            print(f"Segmentation model loaded from {checkpoint_path}")
+            logger.info('Segmentation model loaded from %s', checkpoint_path)
         else:
-            print(f"WARNING: Segmentation checkpoint not found at {checkpoint_path}")
-            print("Lung segmentation will produce empty masks!")
+            logger.warning('Segmentation checkpoint not found at %s', checkpoint_path)
+            logger.warning('Lung segmentation will produce empty masks.')
         
         self._model.to(settings.DEVICE)
         self._model.eval()
@@ -411,7 +416,7 @@ class LungSegmentor:
             transforms.ToTensor(),
         ])
         
-        print("Lung segmentation model ready!")
+        logger.info('Lung segmentation model ready.')
     
     def _validate_lung_anatomy(self, binary_mask, prob_map):
         """
@@ -545,8 +550,10 @@ class LungSegmentor:
         passed_checks = sum(checks)
         details['passed_checks'] = f'{passed_checks}/4'
         
-        # Require at least 3 out of 4 checks to pass
-        is_valid_anatomy = passed_checks >= 3
+        # Make strictness tunable per deployment while keeping a safe range.
+        min_checks_required = max(1, min(4, int(getattr(settings, 'MIN_SEGMENTATION_CHECKS', 3))))
+        details['min_checks_required'] = min_checks_required
+        is_valid_anatomy = passed_checks >= min_checks_required
         
         if not is_valid_anatomy and 'reason' not in details:
             details['reason'] = f'Segmentation failed anatomical validation ({passed_checks}/4 checks passed)'
@@ -575,7 +582,7 @@ class LungSegmentor:
         img_tensor = self._transform(image).unsqueeze(0).to(settings.DEVICE)
         
         # Inference
-        with torch.no_grad():
+        with torch.inference_mode():
             logits = self._model(img_tensor)
             mask_tensor = torch.sigmoid(logits)  # Apply sigmoid to get probabilities
         
@@ -688,14 +695,14 @@ class PneumoniaPredictor:
     
     def _initialize(self):
         """Initialize the model, transforms, and Grad-CAM."""
-        print(f"Loading pneumonia detection model on {settings.DEVICE}...")
+        logger.info('Loading pneumonia detection model on %s...', settings.DEVICE)
         
         # Create model architecture
         self._model = self._create_model()
         
         # Load trained weights
         checkpoint_path = settings.MODEL_CHECKPOINT_PATH
-        if checkpoint_path.exists():
+        if checkpoint_path and checkpoint_path.exists():
             checkpoint = torch.load(
                 checkpoint_path, 
                 map_location=settings.DEVICE,
@@ -705,10 +712,10 @@ class PneumoniaPredictor:
                 self._model.load_state_dict(checkpoint['model_state_dict'])
             else:
                 self._model.load_state_dict(checkpoint)
-            print(f"Model loaded from {checkpoint_path}")
+            logger.info('Pneumonia model loaded from %s', checkpoint_path)
         else:
-            print(f"WARNING: Checkpoint not found at {checkpoint_path}")
-            print("Model will use random weights!")
+            logger.warning('Pneumonia model checkpoint not found at %s', checkpoint_path)
+            logger.warning('Model will use random weights.')
         
         self._model.to(settings.DEVICE)
         self._model.eval()
@@ -729,7 +736,7 @@ class PneumoniaPredictor:
         self._grad_cam = GradCAM(self._model, target_layer)
         self._grad_cam_pp = GradCAMPlusPlus(self._model, target_layer)
         
-        print("Pneumonia detection model ready with Grad-CAM support!")
+        logger.info('Pneumonia detection model ready with Grad-CAM support.')
     
     def _create_model(self):
         """Create ResNet50 model with custom classification head."""
@@ -745,6 +752,25 @@ class PneumoniaPredictor:
         )
         
         return model
+
+    def _predict_probabilities(self, image, use_tta=False):
+        """Run classifier and return class probabilities as a CPU tensor."""
+        # Training used grayscale chest X-rays, so normalize all inputs to grayscale->RGB.
+        base_image = image.convert('L').convert('RGB')
+        candidate_images = [base_image]
+
+        if use_tta:
+            candidate_images.append(base_image.transpose(Image.FLIP_LEFT_RIGHT))
+
+        probs_list = []
+        with torch.inference_mode():
+            for candidate in candidate_images:
+                img_tensor = self._transform(candidate).unsqueeze(0).to(settings.DEVICE)
+                outputs = self._model(img_tensor)
+                probs = torch.softmax(outputs, dim=1).squeeze(0).cpu()
+                probs_list.append(probs)
+
+        return torch.stack(probs_list, dim=0).mean(dim=0)
     
     def predict(self, image, validate_xray=True, segment_lungs=True, generate_gradcam=True, gradcam_type='gradcam'):
         """
@@ -816,14 +842,13 @@ class PneumoniaPredictor:
             image_for_detection = segmentation_result['segmented_image']
         
         # Stage 3: Pneumonia detection on segmented image
-        img_tensor = self._transform(image_for_detection).unsqueeze(0).to(settings.DEVICE)
-        
-        with torch.no_grad():
-            outputs = self._model(img_tensor)
-            probs = torch.softmax(outputs, dim=1)
+        probs = self._predict_probabilities(
+            image_for_detection,
+            use_tta=getattr(settings, 'USE_TTA', False)
+        )
         
         # Apply threshold for classification
-        pneumonia_prob = probs[0, 1].item()
+        pneumonia_prob = probs[1].item()
         threshold = getattr(settings, 'PNEUMONIA_THRESHOLD', 0.5)
         
         if pneumonia_prob >= threshold:
@@ -833,7 +858,7 @@ class PneumoniaPredictor:
         
         # Get results
         prediction = settings.CLASS_NAMES[pred_idx]
-        confidence = probs[0, pred_idx].item()
+        confidence = probs[pred_idx].item()
         
         result = {
             'success': True,
@@ -841,8 +866,8 @@ class PneumoniaPredictor:
             'confidence': confidence,
             'confidence_percent': round(confidence * 100, 2),
             'probabilities': {
-                'NORMAL': round(probs[0, 0].item() * 100, 2),
-                'PNEUMONIA': round(probs[0, 1].item() * 100, 2)
+                'NORMAL': round(probs[0].item() * 100, 2),
+                'PNEUMONIA': round(probs[1].item() * 100, 2)
             },
             'is_pneumonia': pred_idx == 1,
             'threshold_used': threshold

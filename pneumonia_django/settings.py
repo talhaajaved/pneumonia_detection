@@ -4,7 +4,20 @@ Pneumonia Detection Web Application using ResNet50.
 """
 
 import os
+import secrets
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
+
+
+def _env_bool(name, default=False):
+    """Read a boolean environment variable safely."""
+    return os.environ.get(name, str(default)).lower() in ('true', '1', 'yes')
+
+
+def _env_list(name, default=''):
+    """Read a comma-separated env var into a stripped list."""
+    value = os.environ.get(name, default)
+    return [item.strip() for item in value.split(',') if item.strip()]
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,14 +26,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DETECTION_DIR = BASE_DIR.parent
 
 # Security settings from environment variables
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-pneumonia-detection-change-this-in-production')
+DEBUG = _env_bool('DJANGO_DEBUG', False)
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+_secret_from_env = os.environ.get('DJANGO_SECRET_KEY')
+if _secret_from_env:
+    SECRET_KEY = _secret_from_env
+else:
+    # Ephemeral fallback avoids shipping a hardcoded secret in source control.
+    SECRET_KEY = secrets.token_urlsafe(64)
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1')
+if not DEBUG and ('*' in ALLOWED_HOSTS or not ALLOWED_HOSTS):
+    raise ImproperlyConfigured('Set DJANGO_ALLOWED_HOSTS explicitly in production (wildcard is not allowed).')
 
 # CSRF trusted origins for production
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+CSRF_TRUSTED_ORIGINS = _env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://localhost:8000,http://127.0.0.1:8000'
+)
+
+# Upload limits to protect memory usage on malformed or oversized requests.
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MEMORY_SIZE', str(10 * 1024 * 1024)))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_SIZE', str(12 * 1024 * 1024)))
 
 # Application definition
 INSTALLED_APPS = [
@@ -136,6 +163,16 @@ CLASS_NAMES = ['NORMAL', 'PNEUMONIA']
 # If pneumonia probability >= threshold, predict PNEUMONIA
 PNEUMONIA_THRESHOLD = 0.90
 
+# Runtime toggles
+ENABLE_XRAY_VALIDATION = _env_bool('ENABLE_XRAY_VALIDATION', True)
+ENABLE_LUNG_SEGMENTATION = _env_bool('ENABLE_LUNG_SEGMENTATION', True)
+ENABLE_GRADCAM = _env_bool('ENABLE_GRADCAM', True)
+USE_TTA = _env_bool('USE_TTA', True)
+
+# API throttling (simple per-IP fixed window in cache)
+API_RATE_LIMIT = int(os.environ.get('API_RATE_LIMIT', '20'))
+API_RATE_WINDOW_SECONDS = int(os.environ.get('API_RATE_WINDOW_SECONDS', '60'))
+
 # ============================================
 # Chest X-ray Validator Model Configuration (Stage 1)
 # ============================================
@@ -185,7 +222,23 @@ if SEGMENTATION_CHECKPOINT_PATH is None:
 # Segmentation settings
 SEGMENTATION_IMAGE_SIZE = 256
 MIN_LUNG_AREA_RATIO = 0.10  # Minimum 10% of image must be lung
+MIN_SEGMENTATION_CHECKS = int(os.environ.get('MIN_SEGMENTATION_CHECKS', '3'))
 
 # Device (CPU by default, change to 'cuda' if GPU available)
 import torch
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
+# Production security headers and cookie policies
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', False)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', True)
+    SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', True)
